@@ -1,0 +1,1 @@
+# shading package — shading models via Strategy pattern

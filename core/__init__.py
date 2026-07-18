@@ -1,0 +1,1 @@
+# core package — vector & matrix math

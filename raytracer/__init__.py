@@ -1,0 +1,1 @@
+# raytracer package — (placeholder, giai đoạn sau)

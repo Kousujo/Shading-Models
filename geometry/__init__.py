@@ -1,0 +1,1 @@
+# geometry package — mesh data structures & primitive generators
