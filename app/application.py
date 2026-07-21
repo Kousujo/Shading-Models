@@ -54,18 +54,13 @@ class Application:
             "Hyperboloid (Saddle)": lambda: create_hyperboloid(),
             "Cylinder": lambda: create_cylinder(),
             "Cone": lambda: create_cone(),
-            "Paraboloid": lambda: create_paraboloid(),
-            "Chair": lambda: load_wireframe_from_txt('models/pure_wireframes/chair_wireframe.txt')
+            "Paraboloid": lambda: create_paraboloid()
         }
 
         self.ui = ControlPanel((WIDTH, HEIGHT), self.modes, self.models)
         self.current_model_name = self.ui.selected_model
         self.current_mode_name = self.ui.selected_mode
-        model_source = self.models[self.current_model_name]
-        if isinstance(model_source, dict):
-            self.mesh = model_source["mesh"]()
-        else:
-            self.mesh = model_source()
+        self.mesh = self._load_mesh_for(self.current_model_name, self.current_mode_name)
 
         self.pipeline = TransformPipeline(eye_distance=5.0)
         self.zbuffer = ZBuffer(WIDTH, HEIGHT)
@@ -104,24 +99,17 @@ class Application:
         model_changed = self.ui.selected_model != self.current_model_name
         mode_changed = self.ui.selected_mode != self.current_mode_name
 
+        # update()
         if model_changed or mode_changed:
             self.current_model_name = self.ui.selected_model
             self.current_mode_name = self.ui.selected_mode
-            
-            model_source = self.models[self.current_model_name]
-            
-            # KỊCH BẢN A: Model này có 2 định dạng (là 1 dictionary)
-            if isinstance(model_source, dict):
-                if self.current_mode_name == "Flat":
-                    # Đang ở Flat -> Load Mesh để có Faces tô màu
-                    self.mesh = model_source["mesh"]()
-                else:
-                    # Đang ở Wireframe -> Load Pure Wireframe chuẩn bài tập
-                    self.mesh = model_source["pure"]()
-                    
-            # KỊCH BẢN B: Model này chỉ có 1 hàm sinh duy nhất (Sphere, Torus...)
-            else:
-                self.mesh = model_source()
+            self.mesh = self._load_mesh_for(self.current_model_name, self.current_mode_name)
+
+    def _load_mesh_for(self, model_name: str, mode_name: str):
+        model_source = self.models[model_name]
+        if isinstance(model_source, dict):
+            return model_source["mesh" if mode_name == "Flat" else "pure"]()
+        return model_source()
 
     def render(self):
         self.screen.fill((0, 0, 0))

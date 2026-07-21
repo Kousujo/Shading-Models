@@ -71,6 +71,7 @@ def convert_to_pure_wireframe(input_filepath, output_filepath, threshold_angle_d
             f.write(f"{e[0] + 1} {e[1] + 1}\n")
 
 if __name__ == "__main__":
+    convert_to_pure_wireframe("models/cube.txt", "models/pure_wireframes/cube_wireframe.txt")
     convert_to_pure_wireframe("models/dodecahedron.txt", "models/pure_wireframes/dodecahedron_wireframe.txt")
     convert_to_pure_wireframe("models/icosahedron.txt", "models/pure_wireframes/icosahedron_wireframe.txt")
     convert_to_pure_wireframe("models/octahedron.txt", "models/pure_wireframes/octahedron_wireframe.txt")

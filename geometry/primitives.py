@@ -12,6 +12,10 @@ def load_wireframe_from_txt(filepath: str) -> WireframeModel:
     m dòng toạ độ (x y z), n dòng cặp chỉ số cạnh — ĐÁNH SỐ TỪ 1 giống sách,
     nên phải trừ 1 khi nạp vào list Python (list bắt đầu từ 0).
     """
+    if not os.path.exists(filepath):
+        print(f"Lỗi: Không tìm thấy file {filepath}")
+        return WireframeModel([], [])
+
     with open(filepath, "r") as f:
         lines = [line.strip() for line in f if line.strip()]
 
