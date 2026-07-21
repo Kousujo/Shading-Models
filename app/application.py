@@ -1,5 +1,5 @@
 import pygame
-from geometry.primitives import create_cube
+from geometry.primitives import create_cube, load_mesh_from_txt
 from geometry.mesh import face_normal
 from core.matrix import Matrix4
 from core.vector import Vector3
@@ -10,7 +10,7 @@ from shading.flat import FlatShading
 from scene.light import Light
 from app.ui import ControlPanel
 
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1280, 720
 SCALE = 150
 
 
@@ -27,7 +27,12 @@ class Application:
 
         # Registry: thêm mode/model mới ở giai đoạn sau chỉ cần thêm 1 dòng ở đây.
         self.modes = {"Wireframe": None, "Flat": FlatShading(base_color=(200, 120, 60))}
-        self.models = {"Cube": create_cube}
+        self.models = {
+            "Cube (Code)": create_cube,
+            "Tetrahedron": lambda: load_mesh_from_txt("models/tetrahedron.txt"),
+            "Octahedron": lambda: load_mesh_from_txt("models/octahedron.txt"),
+            "Icosahedron": lambda: load_mesh_from_txt("models/icosahedron.txt")
+        }
 
         self.ui = ControlPanel((WIDTH, HEIGHT), self.modes, self.models)
         self.current_model_name = self.ui.selected_model
@@ -56,7 +61,7 @@ class Application:
             self.ui.process_event(event)
 
     def update(self, dt: float):
-        self.angle += 0.02
+        self.angle += 0.007
         self.ui.update(dt)
         if self.ui.selected_model != self.current_model_name:
             self.current_model_name = self.ui.selected_model
@@ -64,7 +69,7 @@ class Application:
 
     def render(self):
         self.screen.fill((0, 0, 0))
-        model = Matrix4.rotation_y(self.angle)
+        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle)
 
         if self.ui.selected_mode == "Wireframe":
             self.render_wireframe(model)
