@@ -29,8 +29,8 @@ class ControlPanel:
         )
         self.rot_speed_slider = pygame_gui.elements.UIHorizontalSlider(
             relative_rect=pygame.Rect((10, 70), (160, 20)),
-            start_value=0.02, 
-            value_range=(0.0, 0.1),
+            start_value=0.007, 
+            value_range=(0.0, 3.0),
             manager=self.manager
         )
 

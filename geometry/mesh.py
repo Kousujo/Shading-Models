@@ -26,6 +26,12 @@ class Mesh:
     vertices: List[Vertex]
     faces: List[Face]
 
+@dataclass
+class WireframeModel:
+    """Đúng cấu trúc 'mô hình WireFrame' mục 6.5.1 giáo trình: chỉ đỉnh + cạnh, không có mặt."""
+    vertices: List[Vertex]
+    edges: List[Tuple[int, int]]
+
 def face_normal(p0: Vector3, p1: Vector3, p2: Vector3) -> Vector3:
     """Pháp tuyến mặt từ 3 điểm, theo thứ tự đỉnh CCW nhìn từ ngoài vào."""
     return (p1 - p0).cross(p2 - p0).normalize()

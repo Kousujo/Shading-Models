@@ -1,5 +1,5 @@
 import pygame
-from geometry.primitives import load_mesh_from_txt, create_sphere, create_torus, create_ellipsoid, create_hyperboloid, create_cylinder, create_cone, create_paraboloid
+from geometry.primitives import load_mesh_from_txt, load_wireframe_from_txt, create_sphere, create_torus, create_ellipsoid, create_hyperboloid, create_cylinder, create_cone, create_paraboloid
 from geometry.mesh import face_normal
 from core.matrix import Matrix4
 from core.vector import Vector3
@@ -28,11 +28,26 @@ class Application:
         # Registry: thêm mode/model mới ở giai đoạn sau chỉ cần thêm 1 dòng ở đây.
         self.modes = {"Wireframe": None, "Flat": FlatShading(base_color=(200, 120, 60))}
         self.models = {
-            "Tetrahedron": lambda: load_mesh_from_txt("models/tetrahedron.txt"),
-            "Cube": lambda: load_mesh_from_txt("models/cube.txt"),
-            "Octahedron": lambda: load_mesh_from_txt("models/octahedron.txt"),
-            "Dodecahedron": lambda: load_mesh_from_txt("models/dodecahedron.txt"),
-            "Icosahedron": lambda: load_mesh_from_txt("models/icosahedron.txt"),
+            "Tetrahedron": {
+                "mesh": lambda: load_mesh_from_txt("models/tetrahedron.txt"),
+                "pure": lambda: load_wireframe_from_txt("models/pure_wireframes/tetrahedron_wireframe.txt")
+            },
+            "Cube": {
+                "mesh": lambda: load_mesh_from_txt("models/cube.txt"),
+                "pure": lambda: load_wireframe_from_txt("models/pure_wireframes/cube_wireframe.txt")
+            },
+            "Octahedron": {
+                "mesh": lambda: load_mesh_from_txt("models/octahedron.txt"),
+                "pure": lambda: load_wireframe_from_txt("models/pure_wireframes/octahedron_wireframe.txt")
+            },
+            "Dodecahedron": {
+                "mesh": lambda: load_mesh_from_txt("models/dodecahedron.txt"),
+                "pure": lambda: load_wireframe_from_txt("models/pure_wireframes/dodecahedron_wireframe.txt")
+            },
+            "Icosahedron": {
+                "mesh": lambda: load_mesh_from_txt("models/icosahedron.txt"),
+                "pure": lambda: load_wireframe_from_txt("models/pure_wireframes/icosahedron_wireframe.txt")
+            },
             "Sphere": lambda: create_sphere(),
             "Torus": lambda: create_torus(),
             "Ellipsoid": lambda: create_ellipsoid(),
@@ -40,11 +55,17 @@ class Application:
             "Cylinder": lambda: create_cylinder(),
             "Cone": lambda: create_cone(),
             "Paraboloid": lambda: create_paraboloid(),
+            "Chair": lambda: load_wireframe_from_txt('models/pure_wireframes/chair_wireframe.txt')
         }
 
         self.ui = ControlPanel((WIDTH, HEIGHT), self.modes, self.models)
         self.current_model_name = self.ui.selected_model
-        self.mesh = self.models[self.current_model_name]()
+        self.current_mode_name = self.ui.selected_mode
+        model_source = self.models[self.current_model_name]
+        if isinstance(model_source, dict):
+            self.mesh = model_source["mesh"]()
+        else:
+            self.mesh = model_source()
 
         self.pipeline = TransformPipeline(eye_distance=5.0)
         self.zbuffer = ZBuffer(WIDTH, HEIGHT)
@@ -70,7 +91,7 @@ class Application:
 
     def update(self, dt: float):
         # Đọc tốc độ xoay trực tiếp từ thanh trượt UI
-        self.angle += self.ui.rotation_speed
+        self.angle += self.ui.rotation_speed * dt
         
         # Đồng bộ khoảng cách camera nếu người dùng kéo thanh trượt
         if self.pipeline.eye_distance != self.ui.eye_distance:
@@ -79,13 +100,32 @@ class Application:
 
         self.ui.update(dt)
         
-        if self.ui.selected_model != self.current_model_name:
+        # Kiểm tra xem người dùng có đổi Model hoặc đổi Mode trên UI không
+        model_changed = self.ui.selected_model != self.current_model_name
+        mode_changed = self.ui.selected_mode != self.current_mode_name
+
+        if model_changed or mode_changed:
             self.current_model_name = self.ui.selected_model
-            self.mesh = self.models[self.current_model_name]()
+            self.current_mode_name = self.ui.selected_mode
+            
+            model_source = self.models[self.current_model_name]
+            
+            # KỊCH BẢN A: Model này có 2 định dạng (là 1 dictionary)
+            if isinstance(model_source, dict):
+                if self.current_mode_name == "Flat":
+                    # Đang ở Flat -> Load Mesh để có Faces tô màu
+                    self.mesh = model_source["mesh"]()
+                else:
+                    # Đang ở Wireframe -> Load Pure Wireframe chuẩn bài tập
+                    self.mesh = model_source["pure"]()
+                    
+            # KỊCH BẢN B: Model này chỉ có 1 hàm sinh duy nhất (Sphere, Torus...)
+            else:
+                self.mesh = model_source()
 
     def render(self):
         self.screen.fill((0, 0, 0))
-        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle)
+        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle) @ Matrix4.rotation_z(self.angle)
 
         if self.ui.selected_mode == "Wireframe":
             self.render_wireframe(model)
@@ -96,11 +136,15 @@ class Application:
         pygame.display.flip()
 
     def render_wireframe(self, model: Matrix4) -> None:
-        edges = set()
-        for face in self.mesh.faces:
-            a, b, c = face.indices()
-            for i, j in ((a, b), (b, c), (c, a)):
-                edges.add((min(i, j), max(i, j)))
+        if hasattr(self.mesh, "edges"):          # WireframeModel: dùng cạnh có sẵn
+            edges = self.mesh.edges # type: ignore
+        else:                                      # Mesh tam giác: suy ra cạnh từ mặt (như cũ)
+            edges = set()
+            for face in self.mesh.faces:
+                a, b, c = face.indices()
+                for i, j in ((a, b), (b, c), (c, a)):
+                    edges.add((min(i, j), max(i, j)))
+
         for i, j in edges:
             w1 = model.transform_point(self.mesh.vertices[i].position)
             w2 = model.transform_point(self.mesh.vertices[j].position)
@@ -109,6 +153,10 @@ class Application:
             pygame.draw.line(self.screen, (0, 255, 100), p1, p2)
 
     def render_solid(self, model: Matrix4, shading) -> None:
+        if not hasattr(self.mesh, "faces"):
+            self.render_wireframe(model)
+            return
+        
         self.zbuffer.clear()
         for face in self.mesh.faces:
             a, b, c = face.indices()
@@ -129,3 +177,4 @@ class Application:
                 (depths[0], depths[1], depths[2]),
                 shade_fn=lambda w0, w1, w2: color,
             )
+

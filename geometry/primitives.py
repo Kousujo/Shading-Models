@@ -4,6 +4,26 @@ import os
 from typing import Callable
 from geometry.mesh import Vertex, Face, Mesh
 from core.vector import Vector3
+from geometry.mesh import WireframeModel
+
+def load_wireframe_from_txt(filepath: str) -> WireframeModel:
+    """
+    Đọc đúng định dạng 6.5.1: dòng 1 = 'm n' (m đỉnh, n cạnh),
+    m dòng toạ độ (x y z), n dòng cặp chỉ số cạnh — ĐÁNH SỐ TỪ 1 giống sách,
+    nên phải trừ 1 khi nạp vào list Python (list bắt đầu từ 0).
+    """
+    with open(filepath, "r") as f:
+        lines = [line.strip() for line in f if line.strip()]
+
+    num_vertices, num_edges = map(int, lines[0].split())
+    vertices = [Vertex(Vector3(*map(float, lines[1 + i].split()))) for i in range(num_vertices)]
+
+    edges = []
+    for i in range(num_edges):
+        v1, v2 = map(int, lines[1 + num_vertices + i].split())
+        edges.append((v1 - 1, v2 - 1))  # 1-indexed (sách) -> 0-indexed (Python)
+
+    return WireframeModel(vertices, edges)
 
 def load_mesh_from_txt(filepath: str) -> Mesh:
     """Đọc dữ liệu đa diện từ file text và trả về đối tượng Mesh."""
