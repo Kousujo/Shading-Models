@@ -1,5 +1,5 @@
 import pygame
-from geometry.primitives import create_cube, load_mesh_from_txt
+from geometry.primitives import load_mesh_from_txt, create_sphere, create_torus, create_ellipsoid, create_hyperboloid, create_cylinder, create_cone, create_paraboloid
 from geometry.mesh import face_normal
 from core.matrix import Matrix4
 from core.vector import Vector3
@@ -28,10 +28,18 @@ class Application:
         # Registry: thêm mode/model mới ở giai đoạn sau chỉ cần thêm 1 dòng ở đây.
         self.modes = {"Wireframe": None, "Flat": FlatShading(base_color=(200, 120, 60))}
         self.models = {
-            "Cube (Code)": create_cube,
             "Tetrahedron": lambda: load_mesh_from_txt("models/tetrahedron.txt"),
+            "Cube": lambda: load_mesh_from_txt("models/cube.txt"),
             "Octahedron": lambda: load_mesh_from_txt("models/octahedron.txt"),
-            "Icosahedron": lambda: load_mesh_from_txt("models/icosahedron.txt")
+            "Dodecahedron": lambda: load_mesh_from_txt("models/dodecahedron.txt"),
+            "Icosahedron": lambda: load_mesh_from_txt("models/icosahedron.txt"),
+            "Sphere": lambda: create_sphere(),
+            "Torus": lambda: create_torus(),
+            "Ellipsoid": lambda: create_ellipsoid(),
+            "Hyperboloid (Saddle)": lambda: create_hyperboloid(),
+            "Cylinder": lambda: create_cylinder(),
+            "Cone": lambda: create_cone(),
+            "Paraboloid": lambda: create_paraboloid(),
         }
 
         self.ui = ControlPanel((WIDTH, HEIGHT), self.modes, self.models)
@@ -61,8 +69,16 @@ class Application:
             self.ui.process_event(event)
 
     def update(self, dt: float):
-        self.angle += 0.007
+        # Đọc tốc độ xoay trực tiếp từ thanh trượt UI
+        self.angle += self.ui.rotation_speed
+        
+        # Đồng bộ khoảng cách camera nếu người dùng kéo thanh trượt
+        if self.pipeline.eye_distance != self.ui.eye_distance:
+            self.pipeline.eye_distance = self.ui.eye_distance
+            self.eye.z = self.ui.eye_distance  # Quan trọng: Cập nhật vị trí mắt để ánh sáng chiếu đúng
+
         self.ui.update(dt)
+        
         if self.ui.selected_model != self.current_model_name:
             self.current_model_name = self.ui.selected_model
             self.mesh = self.models[self.current_model_name]()

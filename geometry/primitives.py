@@ -1,27 +1,9 @@
+import math
 import os
 
+from typing import Callable
 from geometry.mesh import Vertex, Face, Mesh
 from core.vector import Vector3
-
-
-def create_cube(size: float = 2.0) -> Mesh:
-    h = size / 2
-    positions = [
-        Vector3(-h, -h, -h), Vector3(h, -h, -h),   # 0, 1
-        Vector3(h, h, -h), Vector3(-h, h, -h),      # 2, 3
-        Vector3(-h, -h, h), Vector3(h, -h, h),       # 4, 5
-        Vector3(h, h, h), Vector3(-h, h, h),          # 6, 7
-    ]
-    vertices = [Vertex(p) for p in positions]
-    faces = [
-        Face(4, 5, 6), Face(4, 6, 7),   # trước (+Z)
-        Face(1, 0, 3), Face(1, 3, 2),    # sau   (-Z)
-        Face(5, 1, 2), Face(5, 2, 6),     # phải  (+X)
-        Face(0, 4, 7), Face(0, 7, 3),      # trái  (-X)
-        Face(3, 7, 6), Face(3, 6, 2),       # trên  (+Y)
-        Face(0, 1, 5), Face(0, 5, 4),        # dưới  (-Y)
-    ]
-    return Mesh(vertices, faces)
 
 def load_mesh_from_txt(filepath: str) -> Mesh:
     """Đọc dữ liệu đa diện từ file text và trả về đối tượng Mesh."""
@@ -50,3 +32,106 @@ def load_mesh_from_txt(filepath: str) -> Mesh:
             faces.append(Face(a, b, c))
 
     return Mesh(vertices, faces)
+
+def create_parametric_surface(
+    func: Callable[[float, float], Vector3],
+    u_min: float, u_max: float, u_steps: int,
+    v_min: float, v_max: float, v_steps: int
+) -> Mesh:
+    """Cỗ máy dệt lưới 3D tự động từ phương trình tham số."""
+    vertices = []
+    faces = []
+
+    # 1. Sinh đỉnh (tạo lưới u_steps+1 x v_steps+1)
+    for i in range(u_steps + 1):
+        # Tính tỷ lệ từ 0 -> 1, sau đó map vào khoảng [u_min, u_max]
+        u = u_min + (u_max - u_min) * (i / u_steps) if u_steps > 0 else u_min
+        for j in range(v_steps + 1):
+            v = v_min + (v_max - v_min) * (j / v_steps) if v_steps > 0 else v_min
+            
+            # Gọi hàm toán học func(u, v) để lấy toạ độ 3D
+            vertices.append(Vertex(func(u, v)))
+
+    # 2. Sinh mặt tam giác (Quét qua các ô vuông và chẻ đôi)
+    for i in range(u_steps):
+        for j in range(v_steps):
+            # Công thức tính index 1D từ toạ độ 2D (i, j)
+            row_len = v_steps + 1
+            p1 = i * row_len + j
+            p2 = i * row_len + (j + 1)
+            p3 = (i + 1) * row_len + (j + 1)
+            p4 = (i + 1) * row_len + j
+
+            # Quy tắc bàn tay phải (CCW)
+            faces.append(Face(p1, p2, p3))
+            faces.append(Face(p1, p3, p4))
+
+    return Mesh(vertices, faces)
+
+def create_sphere(radius=1.5, lat_steps=20, lon_steps=30):
+    """Mặt cầu tối ưu qua create_parametric_surface."""
+    return create_parametric_surface(
+        lambda u, v: Vector3(
+            radius * math.cos(u) * math.cos(v),
+            radius * math.sin(v),
+            radius * math.sin(u) * math.cos(v)
+        ),
+        u_min=0, u_max=2 * math.pi, u_steps=lon_steps,
+        v_min=-math.pi / 2, v_max=math.pi / 2, v_steps=lat_steps
+    )
+
+def create_torus(major_radius=1.0, minor_radius=0.5, sweep_steps=30, tube_steps=20):
+    """Hình xuyến tối ưu qua create_parametric_surface."""
+    return create_parametric_surface(
+        lambda u, v: Vector3(
+            (major_radius + minor_radius * math.cos(v)) * math.cos(u),
+            minor_radius * math.sin(v),
+            (major_radius + minor_radius * math.cos(v)) * math.sin(u)
+        ),
+        u_min=0, u_max=2 * math.pi, u_steps=sweep_steps,
+        v_min=0, v_max=2 * math.pi, v_steps=tube_steps
+    )
+
+def create_ellipsoid(rx=1.5, ry=1.0, rz=0.8):
+    # X = rx*cos(u)cos(v), Z = ry*sin(u)cos(v), Y = rz*sin(v)
+    return create_parametric_surface(
+        lambda u, v: Vector3(rx * math.cos(u) * math.cos(v), rz * math.sin(v), ry * math.sin(u) * math.cos(v)),
+        0, 2 * math.pi, 30,          # Góc u (kinh độ)
+        -math.pi / 2, math.pi / 2, 20 # Góc v (vĩ độ)
+    )
+
+def create_hyperboloid():
+    # Đây là mặt Yên ngựa (Hyperbolic Paraboloid): Y = u^2 - v^2
+    return create_parametric_surface(
+        lambda u, v: Vector3(u, u**2 - v**2, v),
+        -1.2, 1.2, 20, 
+        -1.2, 1.2, 20
+    )
+
+def create_cylinder(radius=1.0, height=2.0):
+    # X = R*cos(u), Z = R*sin(u), Y = v
+    return create_parametric_surface(
+        lambda u, v: Vector3(radius * math.cos(u), v, radius * math.sin(u)),
+        0, 2 * math.pi, 30,
+        -height / 2, height / 2, 10
+    )
+
+def create_cone(radius=1.0, height=2.0):
+    # Đỉnh nón ở y = height/2, đáy ở y = -height/2
+    return create_parametric_surface(
+        lambda u, v: Vector3(
+            (1 - v) * radius * math.cos(u), 
+            height/2 - v * height, 
+            (1 - v) * radius * math.sin(u)
+        ),
+        0, 2 * math.pi, 30,
+        0.0, 1.0, 20 # v chạy từ 0 (đỉnh) đến 1 (đáy)
+    )
+
+def create_paraboloid(a=1.0, b=1.0):
+    # Chảo Parabol: Y = v^2. Trục v chạy từ 0 đến 1.5
+    return create_parametric_surface(
+        lambda u, v: Vector3(a * v * math.cos(u), v**2 - 1.0, b * v * math.sin(u)),
+        0, 2 * math.pi, 30,
+        0.0, 1.2, 20
+    )
