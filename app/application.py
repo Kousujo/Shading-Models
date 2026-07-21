@@ -8,6 +8,7 @@ from rasterizer.zbuffer import ZBuffer
 from rasterizer.rasterizer import Rasterizer
 from shading.flat import FlatShading
 from scene.light import Light
+from app.ui import ControlPanel
 
 WIDTH, HEIGHT = 800, 600
 SCALE = 150
@@ -23,46 +24,54 @@ class Application:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("CG Shading Demo")
         self.clock = pygame.time.Clock()
-        self.mesh = create_cube(size=2.0)
+
+        # Registry: thêm mode/model mới ở giai đoạn sau chỉ cần thêm 1 dòng ở đây.
+        self.modes = {"Wireframe": None, "Flat": FlatShading(base_color=(200, 120, 60))}
+        self.models = {"Cube": create_cube}
+
+        self.ui = ControlPanel((WIDTH, HEIGHT), self.modes, self.models)
+        self.current_model_name = self.ui.selected_model
+        self.mesh = self.models[self.current_model_name]()
+
         self.pipeline = TransformPipeline(eye_distance=5.0)
         self.zbuffer = ZBuffer(WIDTH, HEIGHT)
         self.rasterizer = Rasterizer(self.screen, self.zbuffer)
-        self.shading = FlatShading(base_color=(200, 120, 60))
         self.light = Light(position=Vector3(3, 3, 3))
         self.eye = Vector3(0, 0, self.pipeline.eye_distance)
         self.angle = 0.0
-        self.mode = "wireframe"  # phím 1 = wireframe, phím 2 = flat
         self.running = True
 
     def run(self):
         while self.running:
+            dt = self.clock.tick(60) / 1000.0
             self.handle_input()
-            self.update()
+            self.update(dt)
             self.render()
-            self.clock.tick(60)
         pygame.quit()
 
     def handle_input(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1:
-                    self.mode = "wireframe"
-                elif event.key == pygame.K_2:
-                    self.mode = "flat"
-                pygame.display.set_caption(f"CG Shading Demo - Mode: {self.mode}")
+            self.ui.process_event(event)
 
-    def update(self):
+    def update(self, dt: float):
         self.angle += 0.02
+        self.ui.update(dt)
+        if self.ui.selected_model != self.current_model_name:
+            self.current_model_name = self.ui.selected_model
+            self.mesh = self.models[self.current_model_name]()
 
     def render(self):
         self.screen.fill((0, 0, 0))
         model = Matrix4.rotation_y(self.angle)
-        if self.mode == "wireframe":
+
+        if self.ui.selected_mode == "Wireframe":
             self.render_wireframe(model)
         else:
-            self.render_solid(model)
+            self.render_solid(model, self.modes[self.ui.selected_mode])
+
+        self.ui.draw(self.screen)
         pygame.display.flip()
 
     def render_wireframe(self, model: Matrix4) -> None:
@@ -78,7 +87,7 @@ class Application:
             p2 = to_screen(*self.pipeline.project(w2))
             pygame.draw.line(self.screen, (0, 255, 100), p1, p2)
 
-    def render_solid(self, model: Matrix4) -> None:
+    def render_solid(self, model: Matrix4, shading) -> None:
         self.zbuffer.clear()
         for face in self.mesh.faces:
             a, b, c = face.indices()
@@ -92,7 +101,7 @@ class Application:
                 sum(w.y for w in world) / 3,
                 sum(w.z for w in world) / 3,
             )
-            color = self.shading.shade(centroid, normal, self.light, self.eye)
+            color = shading.shade(centroid, normal, self.light, self.eye)
 
             self.rasterizer.draw_triangle(
                 (screen[0], screen[1], screen[2]),
