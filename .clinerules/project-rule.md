@@ -75,6 +75,8 @@ rasterizer/     # rasterizer.py, zbuffer.py
 shading/        # base.py (ShadingStrategy) + flat.py/gouraud.py/phong.py/blinn_phong.py
 scene/          # camera.py, light.py, scene.py
 app/            # application.py — game loop, input, cửa sổ Pygame
+│   └── ui.py   # ControlPanel — pygame_gui dropdowns + sliders
+models/         # .txt files — platonic solids (tetrahedron, cube, octahedron, dodecahedron, icosahedron)
 raytracer/      # (tuỳ chọn, module độc lập, giai đoạn sau)
 main.py
 requirements.txt
