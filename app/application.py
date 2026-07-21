@@ -1,71 +1,57 @@
-"""Application — Pygame game loop boilerplate.
-
-Đây là boilerplate được phép viết đầy đủ (không phải thuật toán CG).
-"""
-
-from __future__ import annotations
-import sys
 import pygame
+
+from geometry.primitives import create_cube
+from core.matrix import Matrix4
+from pipeline.transform import TransformPipeline
+
+WIDTH, HEIGHT = 1280, 720
+SCALE = 150  # đơn vị world -> pixel
+
+
+def to_screen(x: float, y: float) -> tuple[int, int]:
+    return int(WIDTH / 2 + x * SCALE), int(HEIGHT / 2 - y * SCALE)  # lật trục Y (màn hình Y hướng xuống)
 
 
 class Application:
-    """Quản lý vòng lặp chính và cửa sổ Pygame."""
-
-    def __init__(
-        self,
-        width: int = 800,
-        height: int = 600,
-        title: str = "Shading Models — Software Renderer",
-    ) -> None:
-        self.width: int = width
-        self.height: int = height
-        self.title: str = title
-        self.screen: pygame.Surface | None = None
-        self.clock: pygame.time.Clock | None = None
-        self.running: bool = False
-
-    def _init_pygame(self) -> None:
-        """Khởi tạo Pygame, cửa sổ, clock."""
+    def __init__(self):
         pygame.init()
-        pygame.display.set_caption(self.title)
-        self.screen = pygame.display.set_mode((self.width, self.height))
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("CG Shading Demo - Giai doan 1: Wireframe")
         self.clock = pygame.time.Clock()
+        self.mesh = create_cube(size=2.0)
+        self.pipeline = TransformPipeline(eye_distance=5)
+        self.angle = 0.0
+        self.running = True
 
-    def _handle_events(self) -> None:
-        """Xử lý sự kiện — hiện chỉ xử lý QUIT."""
+    def run(self):
+        while self.running:
+            self.handle_input()
+            self.update()
+            self.render()
+            self.clock.tick(60)
+        pygame.quit()
+
+    def handle_input(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
 
-    def _update(self, dt: float) -> None:
-        """Cập nhật logic mỗi frame.
+    def update(self):
+        self.angle += 0.005
 
-        Args:
-            dt: Delta time (giây) từ frame trước.
-        """
-        pass  # TODO: Phase 4+ — cập nhật camera, object rotation, ...
-
-    def _render(self) -> None:
-        """Vẽ framebuffer lên màn hình (tạm thời: nền đen)."""
-        # ponytail: clear screen to black each frame
-        # Upgrade path: replace with full software rasterization pipeline
+    def render(self):
         self.screen.fill((0, 0, 0))
+        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle * 0.5)
+
+        edges = set()
+        for face in self.mesh.faces:
+            a, b, c = face.indices()
+            for i, j in ((a, b), (b, c), (c, a)):
+                edges.add((min(i, j), max(i, j)))
+
+        for i, j in edges:
+            p1 = self.pipeline.project(self.mesh.vertices[i].position, model)
+            p2 = self.pipeline.project(self.mesh.vertices[j].position, model)
+            pygame.draw.line(self.screen, (0, 255, 100), to_screen(*p1), to_screen(*p2))
+
         pygame.display.flip()
-
-    def _cleanup(self) -> None:
-        """Dọn dẹp trước khi thoát."""
-        pygame.quit()
-
-    def run(self) -> None:
-        """Vòng lặp chính: init → handle events → update → render."""
-        self._init_pygame()
-        self.running = True
-
-        while self.running:
-            dt = self.clock.tick(60) / 1000.0  # seconds, cố định ~60 FPS
-            self._handle_events()
-            self._update(dt)
-            self._render()
-
-        self._cleanup()
-        sys.exit()
