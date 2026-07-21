@@ -85,6 +85,7 @@ README.md
 ## Dependencies được duyệt
 
 - `numpy`, `pygame` — bắt buộc
+- `pygame_gui` — tuỳ chọn (GUI controls cho interactive demo)
 - `Pillow` — tuỳ chọn (screenshot cho báo cáo)
 - Không tự ý thêm dependency mới mà không hỏi trước — khớp trực tiếp với bậc thang ponytail
   (mục 5: dùng dependency đã cài, không phải "muốn gì cài nấy")

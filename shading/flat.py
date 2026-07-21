@@ -1,18 +1,16 @@
-"""Flat Shading — tô phẳng, toàn bộ mặt 1 màu."""
-
-from __future__ import annotations
-from shading.base import ShadingStrategy
+from shading.base import ShadingStrategy, scale_color, RGB
 from core.vector import Vector3
 
 
 class FlatShading(ShadingStrategy):
-    """Flat shading: dùng pháp tuyến mặt, tính 1 màu cho cả tam giác."""
+    """1 màu duy nhất cho cả mặt: Lambert (N.L) + ambient."""
 
-    def shade(
-        self,
-        vertex: Vector3,
-        normal: Vector3,
-        light_dir: Vector3,
-        view_dir: Vector3,
-    ) -> float:
-        raise NotImplementedError("TODO: Phase 5 — Flat shading")
+    def __init__(self, base_color: RGB = (200, 200, 200), ambient: float = 0.15):
+        self.base_color = base_color
+        self.ambient = ambient
+
+    def shade(self, position: Vector3, normal: Vector3, light, eye: Vector3) -> RGB:
+        to_light = (light.position - position).normalize()
+        diffuse = max(0.0, normal.dot(to_light))
+        intensity = self.ambient + (1 - self.ambient) * diffuse * light.intensity
+        return scale_color(self.base_color, intensity)

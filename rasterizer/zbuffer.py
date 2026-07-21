@@ -1,26 +1,21 @@
-"""ZBuffer — depth-buffer để khử mặt khuất.
-
-Không implement (để trống / raise NotImplementedError).
-"""
-
-from __future__ import annotations
-
-
 class ZBuffer:
-    """Quản lý depth buffer — so sánh độ sâu trước khi vẽ pixel."""
+    """Lưu độ sâu (z) của điểm gần camera nhất đã vẽ tại mỗi pixel.
+    z càng LỚN nghĩa là càng GẦN camera (do camera đặt tại (0,0,E), E>0 - xem pipeline/transform.py)."""
 
-    def __init__(self, width: int, height: int) -> None:
-        """Khởi tạo buffer kích thước width × height."""
-        raise NotImplementedError("TODO: Phase 4 — z-buffer init")
+    def __init__(self, width: int, height: int):
+        self.width = width
+        self.height = height
+        self.buffer = [[float("-inf")] * width for _ in range(height)]
 
     def test_and_set(self, x: int, y: int, depth: float) -> bool:
-        """Kiểm tra độ sâu tại (x, y).
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return False
+        if depth > self.buffer[y][x]:
+            self.buffer[y][x] = depth
+            return True
+        return False
 
-        Args:
-            x, y: Toạ độ pixel.
-            depth: Độ sâu cần kiểm tra.
-
-        Returns:
-            True nếu pixel gần hơn (depth < buffer hiện tại), False nếu bị che.
-        """
-        raise NotImplementedError("TODO: Phase 4 — z-buffer test_and_set")
+    def clear(self) -> None:
+        for row in self.buffer:
+            for i in range(len(row)):
+                row[i] = float("-inf")

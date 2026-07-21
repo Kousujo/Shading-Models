@@ -1,5 +1,4 @@
 from core.vector import Vector3
-from core.matrix import Matrix4
 
 
 class TransformPipeline:
@@ -9,13 +8,9 @@ class TransformPipeline:
     Yêu cầu: P.z < E (điểm phải nằm trước mắt).
     """
 
-    def __init__(self, eye_distance: float = 5):
+    def __init__(self, eye_distance: float = 5.0):
         self.eye_distance = eye_distance
 
-    def project(self, v: Vector3, model: Matrix4) -> tuple[float, float]:
-        world = model.transform_point(v)
+    def project(self, world: Vector3) -> tuple[float, float]:
         factor = 1 - world.z / self.eye_distance
-        # ponytail: chưa xử lý factor <= 0 (điểm ở sau/ngay tại mắt) - với cube nhỏ
-        # + eye_distance=5 mặc định thì luôn an toàn ở Giai đoạn 1. Cần xử lý khi
-        # object lớn hơn hoặc camera lại gần.
         return world.x / factor, world.y / factor

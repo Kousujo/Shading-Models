@@ -25,3 +25,7 @@ class Face:
 class Mesh:
     vertices: List[Vertex]
     faces: List[Face]
+
+def face_normal(p0: Vector3, p1: Vector3, p2: Vector3) -> Vector3:
+    """Pháp tuyến mặt từ 3 điểm, theo thứ tự đỉnh CCW nhìn từ ngoài vào."""
+    return (p1 - p0).cross(p2 - p0).normalize()
