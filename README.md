@@ -12,21 +12,23 @@ Xây dựng **software renderer** từ đầu bằng **Python thuần** (KHÔNG 
 
 Đồ án cuối kỳ môn **Đồ hoạ máy tính** (báo cáo dự kiến 11–12/8/2026).
 
-## Tính năng đã cài đặt (Phase 2)
+## Tính năng đã cài đặt
 
 - ✅ **Vector3** — dot, cross, normalize, các phép toán cơ bản
 - ✅ **Matrix4** — rotation (x/y/z), translation, scale, row-vector convention
 - ✅ **Pipeline đồ hoạ** — model transform → perspective projection → rasterization
 - ✅ **Rasterization** — tô tam giác bằng toạ độ trọng tâm (barycentric)
 - ✅ **Z-buffer** — khử mặt khuất
-- ✅ **Wireframe** — hiển thị khung lưới xanh
+- ✅ **Wireframe** — hiển thị khung lưới xanh (hỗ trợ cả Mesh và WireframeModel)
 - ✅ **Flat Shading** — Lambert diffuse + ambient light
 - ✅ **12 mô hình 3D** — 5 khối đa diện đều + 7 mặt tham số (xem danh sách bên dưới)
+- ✅ **5 pure wireframes** — mô hình chỉ gồm đỉnh + cạnh (định dạng 6.5.1 giáo trình)
+- ✅ **Converter** — công cụ chuyển Mesh → pure wireframe, lọc đường chéo đồng phẳng
 - ✅ **Control Panel** (pygame_gui):
   - Chọn shading mode (Wireframe / Flat)
   - Chọn mô hình 3D (dropdown)
-  - Slider tốc độ xoay
-  - Slider khoảng cách camera
+  - Slider tốc độ xoay (0.0–3.0 rad/s)
+  - Slider khoảng cách camera (2.0–15.0)
 
 ## Kiến trúc
 
@@ -68,8 +70,10 @@ Shading-Models/
 ├── scene/          # camera.py, light.py, scene.py
 ├── app/            # application.py — game loop, input, Pygame
 │   └── ui.py       # ControlPanel — pygame_gui dropdowns + sliders
-├── models/         # .txt files — platonic solids (tetrahedron, cube...)
+├── models/         # .txt files — platonic solids
+│   └── pure_wireframes/  # .txt files — wireframe (chỉ đỉnh + cạnh)
 ├── raytracer/      # (tuỳ chọn, giai đoạn sau)
+├── converter.py    # Công cụ chuyển Mesh → pure wireframe
 ├── main.py         # Entry point
 ├── requirements.txt
 ├── README.md
@@ -78,20 +82,22 @@ Shading-Models/
 
 ### Danh sách mô hình 3D
 
-| Mô hình | Loại | Vertex |
-|---------|------|--------|
-| Tetrahedron | Khối đa diện đều (4 mặt) | 4 |
-| Cube | Khối đa diện đều (6 mặt) | 8 |
-| Octahedron | Khối đa diện đều (8 mặt) | 6 |
-| Dodecahedron | Khối đa diện đều (12 mặt) | 20 |
-| Icosahedron | Khối đa diện đều (20 mặt) | 12 |
-| Sphere | Mặt tham số | 651 |
-| Torus | Mặt tham số | 651 |
-| Ellipsoid | Mặt tham số | 651 |
-| Hyperboloid (Saddle) | Mặt tham số | 441 |
-| Cylinder | Mặt tham số | 341 |
-| Cone | Mặt tham số | 651 |
-| Paraboloid | Mặt tham số | 651 |
+| Mô hình | Loại | Đỉnh | Mặt / Cạnh |
+|---------|------|------|------------|
+| Tetrahedron | Khối đa diện đều (4 mặt) | 4 | 4 mặt |
+| Cube | Khối đa diện đều (6 mặt) | 8 | 6 mặt |
+| Octahedron | Khối đa diện đều (8 mặt) | 6 | 8 mặt |
+| Dodecahedron | Khối đa diện đều (12 mặt) | 20 | 12 mặt |
+| Icosahedron | Khối đa diện đều (20 mặt) | 12 | 20 mặt |
+| Sphere | Mặt tham số | 651 | 1.200 mặt |
+| Torus | Mặt tham số | 651 | 1.200 mặt |
+| Ellipsoid | Mặt tham số | 651 | 1.200 mặt |
+| Hyperboloid (Saddle) | Mặt tham số | 441 | 800 mặt |
+| Cylinder | Mặt tham số | 341 | 600 mặt |
+| Cone | Mặt tham số | 651 | 1.200 mặt |
+| Paraboloid | Mặt tham số | 651 | 1.200 mặt |
+
+Ngoài ra, 5 khối đa diện đều có **pure wireframe** (chỉ đỉnh + cạnh, định dạng 6.5.1) trong `models/pure_wireframes/`.
 
 ## Hướng dẫn cài đặt & chạy
 
@@ -125,9 +131,16 @@ python main.py
 
 - **Dropdown "Wireframe / Flat"** — chuyển chế độ hiển thị
 - **Dropdown chọn mô hình** — chuyển đổi mô hình 3D
-- **Slider "Rotation Speed"** — điều chỉnh tốc độ xoay
+- **Slider "Rotation Speed"** — điều chỉnh tốc độ xoay (0.0–3.0 rad/s)
 - **Slider "Camera Distance"** — phóng to / thu nhỏ (2.0–15.0)
 - **Nút ✕ trên cửa sổ** — thoát
+
+### Công cụ converter
+
+```bash
+python converter.py
+```
+Chuyển đổi file mesh `.txt` → pure wireframe (lọc đường chéo đồng phẳng). Kết quả ghi vào `models/pure_wireframes/`.
 
 ## Tiến độ phát triển
 
@@ -135,7 +148,7 @@ python main.py
 |-------|----------|------------|
 | Phase 0 | Scaffold project, venv, thư mục | ✅ |
 | Phase 1 | Vector3, Matrix4, wireframe cube | ✅ |
-| Phase 2 | Pipeline, rasterizer, Z-buffer, Flat shading, models, UI | ✅ |
+| Phase 2 | Pipeline, rasterizer, Z-buffer, Flat shading, 12 models, UI, pure wireframes | ✅ |
 | Phase 3 | Gouraud shading + vertex normals | 🔜 |
 | Phase 4 | Phong shading | 🔜 |
 | Phase 5 | Blinn-Phong shading | 🔜 |

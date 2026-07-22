@@ -68,16 +68,18 @@ Nếu không chắc → áp dụng karpathy-guidelines mục 1: hỏi lại ngư
 ## Cấu trúc thư mục cố định
 
 ```
-core/           # vector.py, matrix.py — toán thuần
-geometry/       # mesh.py, primitives.py (cube, sphere...)
-pipeline/       # transform.py — Model/View/Projection
-rasterizer/     # rasterizer.py, zbuffer.py
-shading/        # base.py (ShadingStrategy) + flat.py/gouraud.py/phong.py/blinn_phong.py
-scene/          # camera.py, light.py, scene.py
-app/            # application.py — game loop, input, cửa sổ Pygame
-│   └── ui.py   # ControlPanel — pygame_gui dropdowns + sliders
-models/         # .txt files — platonic solids (tetrahedron, cube, octahedron, dodecahedron, icosahedron)
-raytracer/      # (tuỳ chọn, module độc lập, giai đoạn sau)
+core/               # vector.py, matrix.py — toán thuần
+geometry/           # mesh.py, primitives.py (cube, sphere...)
+pipeline/           # transform.py — Model/View/Projection
+rasterizer/         # rasterizer.py, zbuffer.py
+shading/            # base.py (ShadingStrategy) + flat.py/gouraud.py/phong.py/blinn_phong.py
+scene/              # camera.py, light.py, scene.py
+app/                # application.py — game loop, input, cửa sổ Pygame
+│   └── ui.py       # ControlPanel — pygame_gui dropdowns + sliders
+models/             # .txt files — platonic solids (tetrahedron, cube, octahedron, dodecahedron, icosahedron)
+│   └── pure_wireframes/  # .txt files — wireframe (chỉ đỉnh + cạnh, định dạng 6.5.1)
+converter.py        # Công cụ chuyển Mesh → pure wireframe
+raytracer/          # (tuỳ chọn, module độc lập, giai đoạn sau)
 main.py
 requirements.txt
 README.md
