@@ -20,6 +20,7 @@ def lambert_intensity(position: Vector3, normal: Vector3, light, ambient: float)
 
 class ShadingStrategy(ABC):
     per_vertex: bool = False  # True nếu cần đánh giá tại từng đỉnh (Gouraud) thay vì 1 lần/mặt (Flat)
+    per_pixel: bool = False   # True nếu cần tính màu tại từng pixel (Phong/Blinn-Phong)
 
     @abstractmethod
     def shade(self, position: Vector3, normal: Vector3, light, eye: Vector3) -> RGB:

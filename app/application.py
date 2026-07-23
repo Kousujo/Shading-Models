@@ -11,6 +11,7 @@ from rasterizer.zbuffer import ZBuffer
 from rasterizer.rasterizer import Rasterizer
 from shading.flat import FlatShading
 from shading.gouraud import GouraudShading
+from shading.phong import PhongShading
 from scene.light import Light
 from app.ui import ControlPanel
 
@@ -36,6 +37,7 @@ class Application:
             "Wireframe": None,
             "Flat": FlatShading(base_color=(200, 120, 60)),
             "Gouraud": GouraudShading(base_color=(200, 120, 60)),
+            "Phong": PhongShading(base_color=(200, 120, 60), shininess=32.0),
         }
         self.models = {
             "Tetrahedron": {
@@ -132,7 +134,7 @@ class Application:
 
     def render(self):
         self.screen.fill(BACKGROUND_COLOR)
-        model = Matrix4.rotation_y(self.angle)
+        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle * 0.2) @ Matrix4.scale(1.0, 1.0, 1.0)
 
         if self.ui.selected_mode == "Wireframe":
             self.render_wireframe(model)
@@ -175,7 +177,13 @@ class Application:
             screen = [to_screen(*self.pipeline.project(w)) for w in world]
             depths = [w.z for w in world]
 
-            if shading.per_vertex:
+            if getattr(shading, 'per_pixel', False):
+                world_normals = [model.transform_direction(self.mesh.vertices[i].normal) for i in (a, b, c)]
+                self.rasterizer.draw_triangle_phong(
+                    (screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]),
+                    world, world_normals, shading, self.light, self.eye
+                )
+            elif getattr(shading, 'per_vertex', False):
                 world_normals = [model.transform_direction(self.mesh.vertices[i].normal) for i in (a, b, c)]
                 vertex_colors = [shading.shade(world[k], world_normals[k], self.light, self.eye) for k in range(3)]
                 self.rasterizer.draw_triangle_gouraud(
