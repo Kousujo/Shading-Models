@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
 import pygame.surfarray
+import math
 from geometry.primitives import load_mesh_from_txt, load_wireframe_from_txt, create_sphere, create_torus, create_ellipsoid, create_hyperboloid, create_cylinder, create_cone, create_paraboloid
 from geometry.mesh import face_normal, compute_vertex_normals
 from core.matrix import Matrix4
@@ -95,6 +96,10 @@ class Application:
             self.ui.process_event(event)
 
     def update(self, dt: float):
+        # Ánh sáng orbit quanh model — minh hoạ trực quan N·L thay đổi theo thời gian thực
+        light_angle = self.angle * 1.5
+        self.light.position = Vector3(4 * math.cos(light_angle), 3, 4 * math.sin(light_angle))
+
         # Đọc tốc độ xoay trực tiếp từ thanh trượt UI
         self.angle += self.ui.rotation_speed * dt
         
@@ -134,6 +139,7 @@ class Application:
         else:
             self.render_solid(model, self.modes[self.ui.selected_mode])
 
+        self.render_axes(model)
         self.render_stats()
         self.ui.draw(self.screen)
         pygame.display.flip()
@@ -188,6 +194,21 @@ class Application:
                 )
 
         pygame.surfarray.blit_array(self.screen, self.framebuffer)
+
+    def render_axes(self, model: Matrix4) -> None:
+        """Vẽ 3 trục toạ độ X(đỏ)/Y(xanh lá)/Z(xanh dương) từ gốc, dài 2.5 đơn vị.
+        Dùng model matrix để trục xoay đồng bộ với vật thể."""
+        origin = model.transform_point(Vector3(0, 0, 0))
+        axes = [
+            (Vector3(2.5, 0, 0), (255, 0, 0)),    # X — đỏ
+            (Vector3(0, 2.5, 0), (0, 255, 0)),    # Y — xanh lá
+            (Vector3(0, 0, 2.5), (0, 0, 255)),    # Z — xanh dương
+        ]
+        for tip_world, color in axes:
+            tip = model.transform_point(tip_world)
+            p_origin = to_screen(*self.pipeline.project(origin))
+            p_tip = to_screen(*self.pipeline.project(tip))
+            pygame.draw.line(self.screen, color, p_origin, p_tip, 2)
 
     def render_stats(self) -> None:
         """Hiển thị FPS, số tam giác, tên model/mode ở góc dưới-trái."""
