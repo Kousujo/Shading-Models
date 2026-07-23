@@ -7,8 +7,8 @@ Xây dựng **software renderer** từ đầu bằng **Python thuần** (KHÔNG 
 
 1. **Flat Shading** — tô phẳng, toàn mặt một màu ✅
 2. **Gouraud Shading** — nội suy màu đỉnh ✅
-3. **Phong Shading** — nội suy pháp tuyến, tính màu per-pixel ✅
-4. **Blinn-Phong Shading** — biến thể dùng half-vector 🔜
+3. **Phong Shading** — nội suy pháp tuyến per-pixel, specular Phong cổ điển (R·V)^α ✅
+4. **Blinn-Phong Shading** — biến thể dùng half-vector (N·H)^α ✅
 
 Đồ án cuối kỳ môn **Đồ hoạ máy tính** (báo cáo dự kiến 11–12/8/2026).
 
@@ -24,12 +24,13 @@ Xây dựng **software renderer** từ đầu bằng **Python thuần** (KHÔNG 
 - ✅ **Gouraud Shading** — cùng Lambert, nhưng tính per-vertex rồi nội suy màu trong rasterizer
 - ✅ **Dynamic lighting** — ánh sáng orbit quanh mô hình, minh hoạ N·L thay đổi theo thời gian thực
 - ✅ **Trục toạ độ XYZ** — đỏ/xanh lá/xanh dương, xoay đồng bộ với vật thể
-- ✅ **Phong Shading** — Blinn-Phong specular highlight (N·H)^α, per-pixel qua shade_array vector hoá Numpy
+- ✅ **Phong Shading (cổ điển)** — specular dùng reflect vector R = 2(N·L)N − L, (R·V)^α
+- ✅ **Blinn-Phong Shading** — specular dùng half-vector H = normalize(L+V), (N·H)^α (rẻ hơn, đốm sáng rộng hơn)
 - ✅ **12 mô hình 3D** — 5 khối đa diện đều + 7 mặt tham số (xem danh sách bên dưới)
 - ✅ **5 pure wireframes** — mô hình chỉ gồm đỉnh + cạnh (định dạng 6.5.1 giáo trình)
 - ✅ **Converter** — công cụ chuyển Mesh → pure wireframe, lọc đường chéo đồng phẳng
 - ✅ **Control Panel** (pygame_gui):
-  - Chọn shading mode (Wireframe / Flat / Gouraud / Phong)
+  - Chọn shading mode (Wireframe / Flat / Gouraud / Phong / Blinn-Phong)
   - Chọn mô hình 3D (dropdown)
   - Slider tốc độ xoay (0.0–3.0 rad/s)
   - Slider khoảng cách camera (2.0–15.0)
@@ -59,7 +60,7 @@ ShadingStrategy (abstract)
 ├── FlatShading          ✅ Hoàn thành
 ├── GouraudShading       ✅ Hoàn thành
 ├── PhongShading         ✅ Hoàn thành
-└── BlinnPhongShading    🔜 Stub — chờ implement
+├── BlinnPhongShading    ✅ Hoàn thành
 ```
 
 ## Cấu trúc thư mục
@@ -133,7 +134,7 @@ python main.py
 
 ### Điều khiển
 
-- **Dropdown "Wireframe / Flat / Gouraud / Phong"** — chuyển chế độ hiển thị
+- **Dropdown "Wireframe / Flat / Gouraud / Phong / Blinn-Phong"** — chuyển chế độ hiển thị
 - **Dropdown chọn mô hình** — chuyển đổi mô hình 3D
 - **Slider "Rotation Speed"** — điều chỉnh tốc độ xoay (0.0–3.0 rad/s)
 - **Slider "Camera Distance"** — phóng to / thu nhỏ (2.0–15.0)
@@ -154,8 +155,8 @@ Chuyển đổi file mesh `.txt` → pure wireframe (lọc đường chéo đồ
 | Phase 1 | Vector3, Matrix4, wireframe cube | ✅ |
 | Phase 2 | Pipeline, rasterizer, Z-buffer, Flat shading, 12 models, UI, pure wireframes | ✅ |
 | Phase 3 | Gouraud shading + vertex normals, dynamic lighting, trục toạ độ | ✅ |
-| Phase 4 | Phong shading — nội suy pháp tuyến per-pixel, Blinn-Phong specular highlight | ✅ |
-| Phase 5 | Blinn-Phong shading | 🔜 |
+| Phase 4 | Phong shading cổ điển — nội suy pháp tuyến per-pixel, specular (R·V)^α | ✅ |
+| Phase 5 | Blinn-Phong shading — half-vector (N·H)^α | ✅ |
 | Phase 6 | Camera view/projection matrix, Scene quản lý | 🔜 |
 | Phase 7 | So sánh, tinh chỉnh, báo cáo | 🔜 |
 

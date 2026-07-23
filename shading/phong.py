@@ -1,4 +1,4 @@
-"""Phong Shading — nội suy pháp tuyến, tính màu từng pixel với Blinn-Phong highlight."""
+"""Phong Shading (cổ điển) — nội suy pháp tuyến, specular dùng reflect vector R."""
 
 import numpy as np
 from shading.base import ShadingStrategy, RGB
@@ -6,8 +6,9 @@ from core.vector import Vector3
 
 
 class PhongShading(ShadingStrategy):
-    """Phong shading: nội suy pháp tuyến trong tam giác, tính màu per-pixel.
-    Dùng công thức Blinn-Phong cho specular highlight (N·H)^α."""
+    """Phong reflection model cổ điển: specular = (R·V)^shininess,
+    R = phản xạ của hướng TỚI đèn (L) qua pháp tuyến N — khác Blinn-Phong
+    (dùng half-vector H = normalize(L+V), rẻ hơn nhưng là xấp xỉ của R·V)."""
 
     per_pixel = True
     per_vertex = False
@@ -17,58 +18,39 @@ class PhongShading(ShadingStrategy):
         self.base_color = np.array(base_color, dtype=np.float64)
         self.ambient = ambient
         self.specular_color = np.array(specular_color, dtype=np.float64)
-        self.shininess = shininess  # Độ tụ của điểm sáng (càng cao điểm sáng càng nhỏ và gắt)
+        self.shininess = shininess
 
     def shade(self, position: Vector3, normal: Vector3, light, eye: Vector3) -> RGB:
-        """Không dùng tính đơn lẻ — Phong dùng shade_array để tính hàng loạt."""
         raise NotImplementedError("PhongShading dùng shade_array, không shade() đơn lẻ")
 
     def shade_array(self, positions: np.ndarray, normals: np.ndarray, light, eye: Vector3) -> np.ndarray:
-        """Tính ánh sáng Blinn-Phong cho mảng K pixel vượt qua Z-buffer cùng lúc.
-
-        Args:
-            positions: (K, 3) — toạ độ world-space của từng pixel
-            normals:   (K, 3) — pháp tuyến đã nội suy (cần chuẩn hoá lại)
-            light:     Light object
-            eye:       Vector3 — vị trí camera/mắt
-
-        Returns:
-            np.ndarray shape (K, 3) dtype uint8 — màu RGB cho từng pixel
-        """
-        # 1. Chuẩn hoá lại pháp tuyến (do quá trình nội suy làm mất độ dài = 1)
         norms = np.linalg.norm(normals, axis=1, keepdims=True)
-        norms[norms == 0] = 1  # Tránh chia cho 0
+        norms[norms == 0] = 1
         N = normals / norms
 
-        # 2. Vector hướng đèn (L)
         light_pos = np.array([light.position.x, light.position.y, light.position.z])
         L = light_pos - positions
         L_norms = np.linalg.norm(L, axis=1, keepdims=True)
         L_norms[L_norms == 0] = 1
         L = L / L_norms
 
-        # 3. Vector hướng nhìn (V)
         eye_pos = np.array([eye.x, eye.y, eye.z])
         V = eye_pos - positions
         V_norms = np.linalg.norm(V, axis=1, keepdims=True)
         V_norms[V_norms == 0] = 1
         V = V / V_norms
 
-        # 4. Vector phân giác Half-way (H) cho Blinn-Phong
-        H = L + V
-        H_norms = np.linalg.norm(H, axis=1, keepdims=True)
-        H_norms[H_norms == 0] = 1
-        H = H / H_norms
+        # Vector phản xạ R = 2(N·L)N - L — đây là điểm khác Blinn-Phong
+        n_dot_l = np.sum(N * L, axis=1, keepdims=True)
+        R = 2 * n_dot_l * N - L
+        R_norms = np.linalg.norm(R, axis=1, keepdims=True)
+        R_norms[R_norms == 0] = 1
+        R = R / R_norms
 
-        # --- TÍNH TOÁN 3 THÀNH PHẦN ÁNH SÁNG ---
-        # A. Diffuse (N·L)
-        diffuse_factor = np.clip(np.sum(N * L, axis=1, keepdims=True), 0.0, 1.0)
-
-        # B. Specular (N·H)^shininess — chỉ hiển thị đốm sáng nếu mặt đang hướng về đèn
-        spec_dot = np.clip(np.sum(N * H, axis=1, keepdims=True), 0.0, 1.0)
+        diffuse_factor = np.clip(n_dot_l, 0.0, 1.0)
+        spec_dot = np.clip(np.sum(R * V, axis=1, keepdims=True), 0.0, 1.0)
         specular_factor = np.where(diffuse_factor > 0, spec_dot ** self.shininess, 0.0)
 
-        # C. Ambient
         ambient_color = self.base_color * self.ambient
         diffuse_color = self.base_color * (1 - self.ambient) * diffuse_factor * light.intensity
         specular_color = self.specular_color * specular_factor * light.intensity

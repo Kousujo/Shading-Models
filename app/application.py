@@ -12,6 +12,7 @@ from rasterizer.rasterizer import Rasterizer
 from shading.flat import FlatShading
 from shading.gouraud import GouraudShading
 from shading.phong import PhongShading
+from shading.blinn_phong import BlinnPhongShading
 from scene.light import Light
 from app.ui import ControlPanel
 
@@ -38,6 +39,7 @@ class Application:
             "Flat": FlatShading(base_color=(200, 120, 60)),
             "Gouraud": GouraudShading(base_color=(200, 120, 60)),
             "Phong": PhongShading(base_color=(200, 120, 60), shininess=32.0),
+            "Blinn-Phong": BlinnPhongShading(base_color=(200, 120, 60), shininess=32.0),
         }
         self.models = {
             "Tetrahedron": {
@@ -134,7 +136,7 @@ class Application:
 
     def render(self):
         self.screen.fill(BACKGROUND_COLOR)
-        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle * 0.2) @ Matrix4.scale(1.0, 1.0, 1.0)
+        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle * 0.2)
 
         if self.ui.selected_mode == "Wireframe":
             self.render_wireframe(model)
