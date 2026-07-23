@@ -11,7 +11,16 @@ def scale_color(color: RGB, factor: float) -> RGB:
     return (int(r * factor), int(g * factor), int(b * factor))
 
 
+def lambert_intensity(position: Vector3, normal: Vector3, light, ambient: float) -> float:
+    """Cường độ Lambert (ambient + diffuse) cho 1 điểm. Dùng chung cho Flat, Gouraud, Phong."""
+    to_light = (light.position - position).normalize()
+    diffuse = max(0.0, normal.dot(to_light))
+    return min(1.0, ambient + (1 - ambient) * diffuse * light.intensity)
+
+
 class ShadingStrategy(ABC):
+    per_vertex: bool = False  # True nếu cần đánh giá tại từng đỉnh (Gouraud) thay vì 1 lần/mặt (Flat)
+
     @abstractmethod
     def shade(self, position: Vector3, normal: Vector3, light, eye: Vector3) -> RGB:
         ...

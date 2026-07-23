@@ -70,6 +70,13 @@ class Matrix4:
         result = row @ self.data
         return Vector3(result[0], result[1], result[2])
 
+    def transform_direction(self, v: Vector3) -> Vector3:
+        """Biến đổi vector HƯỚNG (pháp tuyến...) - dùng w=0 thay vì w=1 (điểm) để
+        loại bỏ ảnh hưởng của hàng tịnh tiến trong ma trận."""
+        row = np.array([v.x, v.y, v.z, 0.0])
+        result = row @ self.data
+        return Vector3(result[0], result[1], result[2]).normalize()
+
     def __repr__(self) -> str:
         return f"Matrix4(\n{self.data}\n)"
     

@@ -1,4 +1,4 @@
-from shading.base import ShadingStrategy, scale_color, RGB
+from shading.base import ShadingStrategy, lambert_intensity, scale_color, RGB
 from core.vector import Vector3
 
 
@@ -10,7 +10,5 @@ class FlatShading(ShadingStrategy):
         self.ambient = ambient
 
     def shade(self, position: Vector3, normal: Vector3, light, eye: Vector3) -> RGB:
-        to_light = (light.position - position).normalize()
-        diffuse = max(0.0, normal.dot(to_light))
-        intensity = self.ambient + (1 - self.ambient) * diffuse * light.intensity
+        intensity = lambert_intensity(position, normal, light, self.ambient)
         return scale_color(self.base_color, intensity)

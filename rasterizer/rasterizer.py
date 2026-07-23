@@ -49,6 +49,45 @@ class Rasterizer:
         zbuf_region[closer] = depth[closer]
         self.framebuffer[min_x:max_x + 1, min_y:max_y + 1][closer] = color
 
+    def draw_triangle_gouraud(self, screen_pts, depths, vertex_colors) -> None:
+        """Vẽ tam giác nội suy màu theo barycentric (Gouraud), vectorised numpy."""
+        (x0, y0), (x1, y1), (x2, y2) = screen_pts
+        min_x = max(int(min(x0, x1, x2)), 0)
+        max_x = min(int(max(x0, x1, x2)), self.zbuffer.width - 1)
+        min_y = max(int(min(y0, y1, y2)), 0)
+        max_y = min(int(max(y0, y1, y2)), self.zbuffer.height - 1)
+        if max_x < min_x or max_y < min_y:
+            return
+
+        area = self._edge(x0, y0, x1, y1, x2, y2)
+        if area == 0:
+            return
+
+        xs = np.arange(min_x, max_x + 1) + 0.5
+        ys = np.arange(min_y, max_y + 1) + 0.5
+        px, py = np.meshgrid(xs, ys, indexing="ij")
+
+        w0 = self._edge(x1, y1, x2, y2, px, py) / area
+        w1 = self._edge(x2, y2, x0, y0, px, py) / area
+        w2 = self._edge(x0, y0, x1, y1, px, py) / area
+        inside = (w0 >= 0) & (w1 >= 0) & (w2 >= 0)
+        if not np.any(inside):
+            return
+
+        depth = w0 * depths[0] + w1 * depths[1] + w2 * depths[2]
+        zbuf_region = self.zbuffer.buffer[min_x:max_x + 1, min_y:max_y + 1]
+        closer = inside & (depth > zbuf_region)
+        if not np.any(closer):
+            return
+        zbuf_region[closer] = depth[closer]
+
+        c0, c1, c2 = np.array(vertex_colors[0]), np.array(vertex_colors[1]), np.array(vertex_colors[2])
+        color = w0[..., None] * c0 + w1[..., None] * c1 + w2[..., None] * c2  # nội suy màu theo barycentric
+        color = np.clip(color, 0, 255).astype(np.uint8)
+
+        region = self.framebuffer[min_x:max_x + 1, min_y:max_y + 1]
+        region[closer] = color[closer]
+
     @staticmethod
     def _edge(ax, ay, bx, by, cx, cy):
         return (cx - ax) * (by - ay) - (cy - ay) * (bx - ax)

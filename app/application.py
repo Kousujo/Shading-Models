@@ -2,13 +2,14 @@ import pygame
 import numpy as np
 import pygame.surfarray
 from geometry.primitives import load_mesh_from_txt, load_wireframe_from_txt, create_sphere, create_torus, create_ellipsoid, create_hyperboloid, create_cylinder, create_cone, create_paraboloid
-from geometry.mesh import face_normal
+from geometry.mesh import face_normal, compute_vertex_normals
 from core.matrix import Matrix4
 from core.vector import Vector3
 from pipeline.transform import TransformPipeline
 from rasterizer.zbuffer import ZBuffer
 from rasterizer.rasterizer import Rasterizer
 from shading.flat import FlatShading
+from shading.gouraud import GouraudShading
 from scene.light import Light
 from app.ui import ControlPanel
 
@@ -30,7 +31,11 @@ class Application:
         self.font = pygame.font.SysFont("consolas", 18)
 
         # Registry: thêm mode/model mới ở giai đoạn sau chỉ cần thêm 1 dòng ở đây.
-        self.modes = {"Wireframe": None, "Flat": FlatShading(base_color=(200, 120, 60))}
+        self.modes = {
+            "Wireframe": None,
+            "Flat": FlatShading(base_color=(200, 120, 60)),
+            "Gouraud": GouraudShading(base_color=(200, 120, 60)),
+        }
         self.models = {
             "Tetrahedron": {
                 "mesh": lambda: load_mesh_from_txt("models/tetrahedron.txt"),
@@ -113,12 +118,16 @@ class Application:
     def _load_mesh_for(self, model_name: str, mode_name: str):
         model_source = self.models[model_name]
         if isinstance(model_source, dict):
-            return model_source["mesh" if mode_name == "Flat" else "pure"]()
-        return model_source()
+            mesh = model_source["pure" if mode_name == "Wireframe" else "mesh"]()
+        else:
+            mesh = model_source()
+        if hasattr(mesh, "faces"):
+            compute_vertex_normals(mesh)
+        return mesh
 
     def render(self):
         self.screen.fill(BACKGROUND_COLOR)
-        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle)
+        model = Matrix4.rotation_y(self.angle)
 
         if self.ui.selected_mode == "Wireframe":
             self.render_wireframe(model)
@@ -160,14 +169,23 @@ class Application:
             screen = [to_screen(*self.pipeline.project(w)) for w in world]
             depths = [w.z for w in world]
 
-            normal = face_normal(*world)
-            centroid = Vector3(
-                sum(w.x for w in world) / 3,
-                sum(w.y for w in world) / 3,
-                sum(w.z for w in world) / 3,
-            )
-            color = shading.shade(centroid, normal, self.light, self.eye)
-            self.rasterizer.draw_triangle_flat((screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]), color)
+            if shading.per_vertex:
+                world_normals = [model.transform_direction(self.mesh.vertices[i].normal) for i in (a, b, c)]
+                vertex_colors = [shading.shade(world[k], world_normals[k], self.light, self.eye) for k in range(3)]
+                self.rasterizer.draw_triangle_gouraud(
+                    (screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]), vertex_colors
+                )
+            else:
+                normal = face_normal(*world)
+                centroid = Vector3(
+                    sum(w.x for w in world) / 3,
+                    sum(w.y for w in world) / 3,
+                    sum(w.z for w in world) / 3,
+                )
+                color = shading.shade(centroid, normal, self.light, self.eye)
+                self.rasterizer.draw_triangle_flat(
+                    (screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]), color
+                )
 
         pygame.surfarray.blit_array(self.screen, self.framebuffer)
 
