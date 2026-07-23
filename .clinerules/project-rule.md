@@ -7,10 +7,7 @@ File này là **rule chính**, dùng chung với 2 rule phụ luôn bật trong 
 - `karpathy-guidelines.md` — kỷ luật "think before coding": nêu giả định rõ ràng, đơn giản tối
   đa, sửa đúng phạm vi, thực thi theo mục tiêu có thể kiểm chứng
 
-Cả 3 file được nạp mỗi phiên làm việc, không cần gọi thủ công. (Lược bỏ phần skills/MCP tools
-trong template project cũ vì dự án này không dùng codegraph/headroom/agent-reach hay bộ 40
-skill — nếu sau này bạn cài thêm, thêm 1 mục riêng vào đây, đừng dựng khung sẵn cho thứ chưa
-tồn tại.)
+Cả 3 file được nạp mỗi phiên làm việc, không cần gọi thủ công.
 
 ## Thứ tự ưu tiên khi các rule "va" nhau
 

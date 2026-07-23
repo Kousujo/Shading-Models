@@ -1,4 +1,6 @@
 import pygame
+import numpy as np
+import pygame.surfarray
 from geometry.primitives import load_mesh_from_txt, load_wireframe_from_txt, create_sphere, create_torus, create_ellipsoid, create_hyperboloid, create_cylinder, create_cone, create_paraboloid
 from geometry.mesh import face_normal
 from core.matrix import Matrix4
@@ -12,6 +14,7 @@ from app.ui import ControlPanel
 
 WIDTH, HEIGHT = 1280, 720
 SCALE = 150
+BACKGROUND_COLOR = (80, 80, 80)
 
 
 def to_screen(x: float, y: float) -> tuple[int, int]:
@@ -24,6 +27,7 @@ class Application:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("CG Shading Demo")
         self.clock = pygame.time.Clock()
+        self.font = pygame.font.SysFont("consolas", 18)
 
         # Registry: thêm mode/model mới ở giai đoạn sau chỉ cần thêm 1 dòng ở đây.
         self.modes = {"Wireframe": None, "Flat": FlatShading(base_color=(200, 120, 60))}
@@ -64,7 +68,8 @@ class Application:
 
         self.pipeline = TransformPipeline(eye_distance=5.0)
         self.zbuffer = ZBuffer(WIDTH, HEIGHT)
-        self.rasterizer = Rasterizer(self.screen, self.zbuffer)
+        self.framebuffer = np.zeros((WIDTH, HEIGHT, 3), dtype=np.uint8)
+        self.rasterizer = Rasterizer(self.framebuffer, self.zbuffer)
         self.light = Light(position=Vector3(3, 3, 3))
         self.eye = Vector3(0, 0, self.pipeline.eye_distance)
         self.angle = 0.0
@@ -112,14 +117,15 @@ class Application:
         return model_source()
 
     def render(self):
-        self.screen.fill((0, 0, 0))
-        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle) @ Matrix4.rotation_z(self.angle)
+        self.screen.fill(BACKGROUND_COLOR)
+        model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle)
 
         if self.ui.selected_mode == "Wireframe":
             self.render_wireframe(model)
         else:
             self.render_solid(model, self.modes[self.ui.selected_mode])
 
+        self.render_stats()
         self.ui.draw(self.screen)
         pygame.display.flip()
 
@@ -144,8 +150,10 @@ class Application:
         if not hasattr(self.mesh, "faces"):
             self.render_wireframe(model)
             return
-        
+
         self.zbuffer.clear()
+        self.framebuffer[:] = BACKGROUND_COLOR
+
         for face in self.mesh.faces:
             a, b, c = face.indices()
             world = [model.transform_point(self.mesh.vertices[i].position) for i in (a, b, c)]
@@ -159,10 +167,15 @@ class Application:
                 sum(w.z for w in world) / 3,
             )
             color = shading.shade(centroid, normal, self.light, self.eye)
+            self.rasterizer.draw_triangle_flat((screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]), color)
 
-            self.rasterizer.draw_triangle(
-                (screen[0], screen[1], screen[2]),
-                (depths[0], depths[1], depths[2]),
-                shade_fn=lambda w0, w1, w2: color,
-            )
+        pygame.surfarray.blit_array(self.screen, self.framebuffer)
+
+    def render_stats(self) -> None:
+        """Hiển thị FPS, số tam giác, tên model/mode ở góc dưới-trái."""
+        fps = self.clock.get_fps()
+        tri_count = len(self.mesh.faces) if hasattr(self.mesh, "faces") else 0
+        text = f"FPS: {fps:5.1f}   Model: {self.current_model_name} ({tri_count} tris)   Mode: {self.current_mode_name}"
+        surf = self.font.render(text, True, (255, 255, 255), (0, 0, 0))
+        self.screen.blit(surf, (10, HEIGHT - 30))
 

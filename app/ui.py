@@ -50,7 +50,7 @@ class ControlPanel:
         # Biến trạng thái để Application đọc
         self.selected_mode = list(modes.keys())[0]
         self.selected_model = list(models.keys())[0]
-        self.rotation_speed = 0.007
+        self.rotation_speed = 0.02
         self.eye_distance = 5.0
 
     def process_event(self, event: pygame.event.Event) -> None:
