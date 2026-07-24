@@ -13,6 +13,7 @@ from shading.flat import FlatShading
 from shading.gouraud import GouraudShading
 from shading.phong import PhongShading
 from shading.blinn_phong import BlinnPhongShading
+from shading.unlit import UnlitShading
 from scene.light import Light
 from app.ui import ControlPanel
 
@@ -81,6 +82,8 @@ class Application:
         self.framebuffer = np.zeros((WIDTH, HEIGHT, 3), dtype=np.uint8)
         self.rasterizer = Rasterizer(self.framebuffer, self.zbuffer)
         self.light = Light(position=Vector3(3, 3, 3))
+        self.light_marker_mesh = create_sphere(radius=0.15, lat_steps=6, lon_steps=10)
+        self.light_marker_shading = UnlitShading(color=(255, 255, 180))
         self.eye = Vector3(0, 0, self.pipeline.eye_distance)
         self.angle = 0.0
         self.running = True
@@ -138,6 +141,8 @@ class Application:
         self.screen.fill(BACKGROUND_COLOR)
         model = Matrix4.rotation_y(self.angle) @ Matrix4.rotation_x(self.angle * 0.2)
 
+        self.render_ground_grid()
+
         if self.ui.selected_mode == "Wireframe":
             self.render_wireframe(model)
         else:
@@ -165,6 +170,37 @@ class Application:
             p2 = to_screen(*self.pipeline.project(w2))
             pygame.draw.line(self.screen, (0, 255, 100), p1, p2)
 
+    def render_solid_object(self, mesh, model: Matrix4, shading) -> None:
+        """Vẽ 1 mesh qua pipeline: transform → project → rasterize + z-test.
+        Dùng chung cho model chính và quả cầu đèn (occlusion đúng giữa 2 object)."""
+        for face in mesh.faces:
+            a, b, c = face.indices()
+            world = [model.transform_point(mesh.vertices[i].position) for i in (a, b, c)]
+            screen = [to_screen(*self.pipeline.project(w)) for w in world]
+            depths = [w.z for w in world]
+
+            if getattr(shading, "per_pixel", False):
+                world_normals = [model.transform_direction(mesh.vertices[i].normal) for i in (a, b, c)]
+                self.rasterizer.draw_triangle_phong(
+                    (screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]),
+                    world, world_normals, shading, self.light, self.eye,
+                )
+            elif getattr(shading, "per_vertex", False):
+                world_normals = [model.transform_direction(mesh.vertices[i].normal) for i in (a, b, c)]
+                vertex_colors = [shading.shade(world[k], world_normals[k], self.light, self.eye) for k in range(3)]
+                self.rasterizer.draw_triangle_gouraud(
+                    (screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]), vertex_colors,
+                )
+            else:
+                normal = face_normal(*world)
+                centroid = Vector3(
+                    sum(w.x for w in world) / 3, sum(w.y for w in world) / 3, sum(w.z for w in world) / 3,
+                )
+                color = shading.shade(centroid, normal, self.light, self.eye)
+                self.rasterizer.draw_triangle_flat(
+                    (screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]), color,
+                )
+
     def render_solid(self, model: Matrix4, shading) -> None:
         if not hasattr(self.mesh, "faces"):
             self.render_wireframe(model)
@@ -173,37 +209,25 @@ class Application:
         self.zbuffer.clear()
         self.framebuffer[:] = BACKGROUND_COLOR
 
-        for face in self.mesh.faces:
-            a, b, c = face.indices()
-            world = [model.transform_point(self.mesh.vertices[i].position) for i in (a, b, c)]
-            screen = [to_screen(*self.pipeline.project(w)) for w in world]
-            depths = [w.z for w in world]
+        self.render_solid_object(self.mesh, model, shading)
 
-            if getattr(shading, 'per_pixel', False):
-                world_normals = [model.transform_direction(self.mesh.vertices[i].normal) for i in (a, b, c)]
-                self.rasterizer.draw_triangle_phong(
-                    (screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]),
-                    world, world_normals, shading, self.light, self.eye
-                )
-            elif getattr(shading, 'per_vertex', False):
-                world_normals = [model.transform_direction(self.mesh.vertices[i].normal) for i in (a, b, c)]
-                vertex_colors = [shading.shade(world[k], world_normals[k], self.light, self.eye) for k in range(3)]
-                self.rasterizer.draw_triangle_gouraud(
-                    (screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]), vertex_colors
-                )
-            else:
-                normal = face_normal(*world)
-                centroid = Vector3(
-                    sum(w.x for w in world) / 3,
-                    sum(w.y for w in world) / 3,
-                    sum(w.z for w in world) / 3,
-                )
-                color = shading.shade(centroid, normal, self.light, self.eye)
-                self.rasterizer.draw_triangle_flat(
-                    (screen[0], screen[1], screen[2]), (depths[0], depths[1], depths[2]), color
-                )
+        light_model = Matrix4.translation(self.light.position.x, self.light.position.y, self.light.position.z)
+        self.render_solid_object(self.light_marker_mesh, light_model, self.light_marker_shading)
 
         pygame.surfarray.blit_array(self.screen, self.framebuffer)
+
+    def render_ground_grid(self) -> None:
+        """Lưới nền cố định mặt XZ, y = -1.5 — không xoay theo model, chỉ để định vị không gian."""
+        grid_color = (55, 55, 60)
+        extent, step = 4, 1
+        y = -1.5
+        for i in range(-extent, extent + 1, step):
+            p1 = to_screen(*self.pipeline.project(Vector3(i, y, -extent)))
+            p2 = to_screen(*self.pipeline.project(Vector3(i, y, extent)))
+            pygame.draw.line(self.screen, grid_color, p1, p2)
+            p1 = to_screen(*self.pipeline.project(Vector3(-extent, y, i)))
+            p2 = to_screen(*self.pipeline.project(Vector3(extent, y, i)))
+            pygame.draw.line(self.screen, grid_color, p1, p2)
 
     def render_axes(self, model: Matrix4) -> None:
         """Vẽ 3 trục toạ độ X(đỏ)/Y(xanh lá)/Z(xanh dương) từ gốc, dài 2.5 đơn vị.
