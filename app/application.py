@@ -217,16 +217,32 @@ class Application:
         pygame.surfarray.blit_array(self.screen, self.framebuffer)
 
     def render_ground_grid(self) -> None:
-        """Lưới nền cố định mặt XZ, y = -1.5 — không xoay theo model, chỉ để định vị không gian."""
+        """Lưới nền cố định mặt XZ, y = -1.5 — không xoay theo model, chỉ để định vị không gian.
+        ponytail: khi camera quá gần (eye_distance <= extent), grid lines có z tiến tới
+        mặt phẳng mắt gây factor=0 trong phép chiếu phối cảnh (chia cho 0).
+        Thay vì clip line chính xác, ta skip toàn bộ line nếu bất kỳ điểm đầu/cuối nào
+        có z >= eye_distance — vài ô biến mất khi zoom gần, chấp nhận được cho grid định vị."""
         grid_color = (55, 55, 60)
         extent, step = 4, 1
         y = -1.5
+        E = self.pipeline.eye_distance  # khoảng cách mắt, dùng để guard z quá gần mắt
+
         for i in range(-extent, extent + 1, step):
-            p1 = to_screen(*self.pipeline.project(Vector3(i, y, -extent)))
-            p2 = to_screen(*self.pipeline.project(Vector3(i, y, extent)))
+            # Guard: bỏ qua line nếu bất kỳ điểm nào có z >= E (factor ≤ 0 → ZeroDivisionError)
+            w1 = Vector3(i, y, -extent)
+            w2 = Vector3(i, y, extent)
+            if w1.z >= E or w2.z >= E:
+                continue
+            p1 = to_screen(*self.pipeline.project(w1))
+            p2 = to_screen(*self.pipeline.project(w2))
             pygame.draw.line(self.screen, grid_color, p1, p2)
-            p1 = to_screen(*self.pipeline.project(Vector3(-extent, y, i)))
-            p2 = to_screen(*self.pipeline.project(Vector3(extent, y, i)))
+
+            w3 = Vector3(-extent, y, i)
+            w4 = Vector3(extent, y, i)
+            if w3.z >= E or w4.z >= E:
+                continue
+            p1 = to_screen(*self.pipeline.project(w3))
+            p2 = to_screen(*self.pipeline.project(w4))
             pygame.draw.line(self.screen, grid_color, p1, p2)
 
     def render_axes(self, model: Matrix4) -> None:
